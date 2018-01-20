@@ -187,10 +187,7 @@ public class RuffyScripter implements RuffyCommands {
             if (!ruffyService.isConnected()) {
                 return false;
             }
-            if (System.currentTimeMillis() - menuLastUpdated >= 1500) {
-                waitForScreenUpdate();
-            }
-            return System.currentTimeMillis() - menuLastUpdated < 1500;
+            return ruffyService.isConnected() && System.currentTimeMillis() - menuLastUpdated < 10 * 1000;
         } catch (RemoteException e) {
             return false;
         }
@@ -202,10 +199,12 @@ public class RuffyScripter implements RuffyCommands {
             return;
         }
         try {
-            log.debug("Disconnecting, requested by ...", new Exception());
+            log.debug("Disconnecting");
             ruffyService.doRTDisconnect();
         } catch (RemoteException e) {
             // ignore
+        } catch (Exception e) {
+            log.warn("Disconnect not happy", e);
         }
     }
 
@@ -241,7 +240,7 @@ public class RuffyScripter implements RuffyCommands {
         List<String> violations = cmd.validateArguments();
         if (!violations.isEmpty()) {
             log.error("Command argument violations: " + Joiner.on(", ").join(violations));
-            return new CommandResult().success(false).state(readPumpStateInternal());
+            return new CommandResult().success(false).state(new PumpState());
         }
 
         synchronized (RuffyScripter.class) {
@@ -423,7 +422,7 @@ public class RuffyScripter implements RuffyCommands {
     private PumpState recoverFromCommandFailure() {
         Menu menu = this.currentMenu;
         if (menu == null) {
-            return null;
+            return new PumpState();
         }
         MenuType type = menu.getType();
         if (type != MenuType.WARNING_OR_ERROR && type != MenuType.MAIN_MENU) {
@@ -501,8 +500,10 @@ public class RuffyScripter implements RuffyCommands {
             BolusType bolusType = (BolusType) menu.getAttribute(MenuAttribute.BOLUS_TYPE);
             Integer activeBasalRate = (Integer) menu.getAttribute(MenuAttribute.BASAL_SELECTED);
 
-            if (bolusType != null && bolusType != BolusType.NORMAL || !activeBasalRate.equals(1)) {
-                state.unsafeUsageDetected = true;
+            if (!activeBasalRate.equals(1)) {
+                state.unsafeUsageDetected = PumpState.UNSUPPORTED_BASAL_RATE_PROFILE;
+            } else if (bolusType != null && bolusType != BolusType.NORMAL) {
+                state.unsafeUsageDetected = PumpState.UNSUPPORTED_BOLUS_TYPE;
             } else if (tbrPercentage != null && tbrPercentage != 100) {
                 state.tbrActive = true;
                 Double displayedTbr = (Double) menu.getAttribute(MenuAttribute.TBR);
@@ -518,10 +519,16 @@ public class RuffyScripter implements RuffyCommands {
                 state.insulinState = ((int) menu.getAttribute(MenuAttribute.INSULIN_STATE));
             }
             if (menu.attributes().contains(MenuAttribute.TIME)) {
-                MenuTime time = (MenuTime) menu.getAttribute(MenuAttribute.TIME);
+                MenuTime pumpTime = (MenuTime) menu.getAttribute(MenuAttribute.TIME);
                 Date date = new Date();
-                date.setHours(time.getHour());
-                date.setMinutes(time.getMinute());
+                // infer yesterday as the pump's date if midnight just passed, but the pump is
+                // a bit behind
+                if (date.getHours() == 0 && date.getMinutes() <= 5
+                        && pumpTime.getHour() == 23 && pumpTime.getMinute() >= 55) {
+                    date.setTime(date.getTime() - 24 * 60 * 60 * 1000);
+                }
+                date.setHours(pumpTime.getHour());
+                date.setMinutes(pumpTime.getMinute());
                 date.setSeconds(0);
                 state.pumpTime = date.getTime() - date.getTime() % 1000;
             }

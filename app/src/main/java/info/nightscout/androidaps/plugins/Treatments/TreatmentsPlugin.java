@@ -251,7 +251,7 @@ public class TreatmentsPlugin implements PluginBase, TreatmentsInterface {
             }
         }
 
-        AutosensData autosensData = IobCobCalculatorPlugin.getLastAutosensData();
+        AutosensData autosensData = IobCobCalculatorPlugin.getLastAutosensDataSynchronized("getMealData()");
         if (autosensData != null) {
             result.mealCOB = autosensData.cob;
         }
@@ -403,8 +403,10 @@ public class TreatmentsPlugin implements PluginBase, TreatmentsInterface {
 
     @Override
     public double getTempBasalRemainingMinutesFromHistory() {
-        if (isTempBasalInProgress())
-            return getTempBasalFromHistory(System.currentTimeMillis()).getPlannedRemainingMinutes();
+        TemporaryBasal activeTemp = getTempBasalFromHistory(System.currentTimeMillis());
+        if (activeTemp != null) {
+            return activeTemp.getPlannedRemainingMinutes();
+        }
         return 0;
     }
 

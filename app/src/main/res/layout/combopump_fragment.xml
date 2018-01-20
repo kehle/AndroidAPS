@@ -336,14 +336,6 @@
                 android:layout_marginRight="20dp"
                 android:layout_marginTop="5dp"
                 android:background="@color/listdelimiter" />
-
-            <TextView
-                android:id="@+id/combo_queue"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textAlignment="center" />
-
         </LinearLayout>
 
     </ScrollView>
@@ -402,7 +394,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:drawableTop="@drawable/icon_bolus"
+                android:drawableTop="@drawable/icon_danarhistory"
                 android:paddingLeft="0dp"
                 android:paddingRight="0dp"
                 android:visibility="gone"

@@ -31,7 +31,6 @@ import info.nightscout.androidaps.events.EventNewBasalProfile;
 import info.nightscout.androidaps.events.EventPreferenceChange;
 import info.nightscout.androidaps.interfaces.PluginBase;
 import info.nightscout.androidaps.plugins.ConfigBuilder.ConfigBuilderPlugin;
-import info.nightscout.androidaps.plugins.IobCobCalculator.events.BasalData;
 import info.nightscout.androidaps.plugins.IobCobCalculator.events.EventAutosensCalculationFinished;
 import info.nightscout.androidaps.plugins.IobCobCalculator.events.EventNewHistoryData;
 
@@ -364,6 +363,8 @@ public class IobCobCalculatorPlugin implements PluginBase {
                 // check if data already exists
                 long bgTime = bucketed_data.get(i).date;
                 bgTime = roundUpTime(bgTime);
+                if (bgTime > System.currentTimeMillis())
+                    continue;
                 Profile profile = MainApp.getConfigBuilder().getProfile(bgTime);
 
                 AutosensData existing;
@@ -544,6 +545,10 @@ public class IobCobCalculatorPlugin implements PluginBase {
                 //log.debug(">>> getAutosensData Cache hit " + data.log(time));
                 return data;
             } else {
+                if (time > now) {
+                    // data may not be calculated yet, use last data
+                    return getLastAutosensData("getAutosensData");
+                }
                 //log.debug(">>> getAutosensData Cache miss " + new Date(time).toLocaleString());
                 return null;
             }
@@ -551,13 +556,35 @@ public class IobCobCalculatorPlugin implements PluginBase {
     }
 
     @Nullable
-    public static AutosensData getLastAutosensData() {
-        if (autosensDataTable.size() < 1)
+    public static AutosensData getLastAutosensDataSynchronized(String reason) {
+        synchronized (dataLock) {
+            return getLastAutosensData(reason);
+        }
+    }
+
+
+    @Nullable
+    public static AutosensData getLastAutosensData(String reason) {
+        if (autosensDataTable.size() < 1) {
+            log.debug("AUTOSENSDATA null: autosensDataTable empty (" + reason + ")");
             return null;
-        AutosensData data = autosensDataTable.valueAt(autosensDataTable.size() - 1);
-        if (data.time < System.currentTimeMillis() - 5 * 60 * 1000) {
+        }
+        AutosensData data = null;
+        try {
+            data = autosensDataTable.valueAt(autosensDataTable.size() - 1);
+        } catch (Exception e) {
+            // data can be processed on the background
+            // in this rare case better return null and do not block UI
+            // APS plugin should use getLastAutosensDataSynchronized where the blocking is not an issue
+            log.debug("AUTOSENSDATA null: Exception catched (" + reason + ")");
+            return null;
+        }
+        if (data.time < System.currentTimeMillis() - 11 * 60 * 1000) {
+            log.debug("AUTOSENSDATA null: data is old (" + reason + ")");
             return null;
         } else {
+            if (data == null)
+                log.debug("AUTOSENSDATA null: data == null (" + " " + reason + ")");
             return data;
         }
     }

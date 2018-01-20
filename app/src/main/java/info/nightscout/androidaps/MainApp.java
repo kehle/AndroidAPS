@@ -15,6 +15,8 @@ import com.squareup.otto.Bus;
 import com.squareup.otto.LoggingBus;
 import com.squareup.otto.ThreadEnforcer;
 
+import net.danlew.android.joda.JodaTimeAndroid;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,6 +99,7 @@ public class MainApp extends Application {
         super.onCreate();
         Fabric.with(this, new Crashlytics());
         Fabric.with(this, new Answers());
+        JodaTimeAndroid.init(this);
         Crashlytics.setString("BUILDVERSION", BuildConfig.BUILDVERSION);
         log.info("Version: " + BuildConfig.VERSION_NAME);
         log.info("BuildVersion: " + BuildConfig.BUILDVERSION);
@@ -164,10 +167,16 @@ public class MainApp extends Application {
             MainApp.getConfigBuilder().initialize();
         }
         NSUpload.uploadAppStart();
-        if (MainApp.getConfigBuilder().isClosedModeEnabled())
+        if (Config.NSCLIENT)
+            Answers.getInstance().logCustom(new CustomEvent("AppStart-NSClient"));
+        else if (Config.G5UPLOADER)
+            Answers.getInstance().logCustom(new CustomEvent("AppStart-G5Uploader"));
+        else if (Config.PUMPCONTROL)
+            Answers.getInstance().logCustom(new CustomEvent("AppStart-PumpControl"));
+        else if (MainApp.getConfigBuilder().isClosedModeEnabled())
             Answers.getInstance().logCustom(new CustomEvent("AppStart-ClosedLoop"));
         else
-            Answers.getInstance().logCustom(new CustomEvent("AppStart"));
+            Answers.getInstance().logCustom(new CustomEvent("AppStart-OpenLoop"));
 
         new Thread(new Runnable() {
             @Override
@@ -220,6 +229,10 @@ public class MainApp extends Application {
 
     public static Bus bus() {
         return sBus;
+    }
+
+    public static String gs(int id) {
+        return sResources.getString(id);
     }
 
     public static MainApp instance() {

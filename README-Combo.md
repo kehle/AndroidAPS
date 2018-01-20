@@ -11,7 +11,11 @@ Hardware requirements:
   Software to configure the pump.
   Roche sends out Smartpix devices and the configuration software
   free of charge to their customers upon request.
-- A compatible phone: An Android phone with a phone running LineageOS 14.1 (formerly CyanogenMod)
+- A compatible phone: An Android phone with a phone running LineageOS 14.1 (formerly CyanogenMod) or Android 8.1 (Oreo).
+  Be aware that while Android 8.1 allows communicating with the Combo, there are still issues with AAPS on 8.1.
+  For advanced users, it is possible to perform the pairing on a rooted phone and transfer it to another rooted
+  phone to use with ruffy/AAPS, which must also be rooted. This allows using phones with Android < 8.1 but
+  has not been widely tested: https://github.com/gregorybel/combo-pairing/blob/master/README.md
 - To build AndroidAPS with Combo support you need the latest Android Studio 3 version
 
 Limitations:
@@ -49,22 +53,32 @@ Setup:
     menus/actions on the pump and hide those which are unsupported (extended/multiwave bolus,
     multiple basal rates), which cause the loop functionality to be restricted when used because
     it's not possible to run the loop in a safe manner when used.
+  - Verify the _Quick Info Text_ is set to "QUICK INFO" (without the quotes, found under _Insulin Pump Options_).
   - Set maximum TBR to 500%
   - Disable end of TBR alert
   - Set TBR duration step-size to 15 min
   - Set low cartridge alarm to your liking
+  - Configure a max bolus suited for your therapy to protect against bugs in the software
+  - Similarly, configure maximum TBR duration as a safeguard. Allow at least 3 hours, since
+    the option to disconnect the pump for 3 hours sets a 0% for 3 hours.
   - Enable keylock (can also be set on the pump directly, see usage section on reasoning)
 - Get Android Studio 3 https://developer.android.com/studio/index.html
-- Clone ruffy from https://github.com/jotomo/ruffy (branch `combo-scripter-v2`)
-- Pair the pump, if it doesn't work after multiple attempts, switch to the `pairing` branch, pair,
-  then switch back the original branch. If the pump is already paired and
-  can be controlled via ruffy, installing the above version is sufficient.
+- Follow the link http://ruffy.AndroidAPS.org and clone via git (branch `combo-scripter-v2`)
+- Pair the pump using ruffy. If it doesn't work after multiple attempts, switch to the `pairing` branch,
+  pair the pump and then switch back the original branch.
+  If the pump is already paired and can be controlled via ruffy, installing the
+  `combo-scripter-v2` branch is sufficient.
   If AAPS is already installed, switch to the MDI plugin to avoid the Combo
   plugin from interfering with ruffy during the pairing process.
-  Note that the pairing processing is somewhat fragile and may need a few attempts;
-  quickly acknowledge prompts and when starting over, remove the pump device
-  from the bluetooth settings beforehand.
-- Clone AndroidAPS from https://github.com/jotomo/AndroidAPS (Branch `combo-scripter-v2`)
+  Note that the pairing processing is somewhat fragile (but only has to be done once)
+  and may need a few attempts; quickly acknowledge prompts and when starting over, remove the pump device
+  from the bluetooth settings beforehand. Another option to try is to go to the bluetooth menu after
+  initiating the pairing process (this keeps the phone's bluetooth discoverable as long as the menu is displayed)
+  and switch back to ruffy after confirming the pairing on the pump, when the pump displays the authorization code.
+  When AAPS is using ruffy, the ruffy app can't be used. The easiest way is to just
+  reboot the phone after the pairing process and let AAPS start ruffy in the background.
+- Clone AndroidAPS from https://github.com/jotomo/AndroidAPS (branch `combo-scripter-v2`)
+  and build AAPS using the instructions in the wiki http://wiki.AndroidAPS.org
 - Before enabling the Combo plugin in AAPS make sure your profile is set up
   correctly and your basal profile is up to date as AAPS will sync the basal profile
   to the pump.
@@ -85,6 +99,8 @@ Usage:
 - The integration of the Combo with AndroidAPS is designed with the assumption that all inputs are
   made via AndroidAPS. Boluses entered on the pump will NOT be detected by AAPS and may therefore
   result in too much insulin being delivered.
+- The pump's first basal rate profile is read on app start and is updated by AAPS. Manually changing
+  the pump's basal rate profile will lead to wrong basals being delivered and is NOT supported.
 - It's recommended to enable key lock on the pump to prevent bolusing from the pump, esp. when the
   pump was used before and quick bolusing was a habit.
   Also, with keylock enabled, accidentally pressing a key will NOT interrupt a running command
@@ -124,21 +140,21 @@ Usage:
   both of these issues can be resolved in future versions.
 
 Known issues:
-- On phones with low memory (or aggressive power saving settings), Android may kill
-  AAPS frequently (if the buttons on the overview screen aren't displayed when opening
-  AAPS, the app was started again after Android killed it).
-  This may trigger false 'pump unreachable alarms' on start.
-  See the Combo tab's "last connection" field to check when the pump was last connected.
-  This may drain the pump's battery quicker since on startup the basal profile is read
-  from the pump. This may also increase the chance to hit the bug that makes the pump
-  reject all incoming connections until a button on the pump is pressed.
-- Occasionally (every couple of days or less) AAPS might fail to automatically cancel
-  a TBR CANCELLED alert and needs to be dealt with (press the refresh button in AAPS
-  to transfer the warning to AAPS or confirm the alert on the pump). Similarly, the
-  'pump unreachable' bug may occur from time to time.
+- Occasionally (every couple of days or so) AAPS might fail to automatically cancel
+  a TBR CANCELLED alert the user then needs to deal with (press the refresh button in AAPS
+  to transfer the warning to AAPS or confirm the alert on the pump).
+- Similarly, the 'pump unreachable' bug may occur from time to time, which requires confirming
+  the alert on the pump to get the pump to accept connections again.
 - Overall the integration seems rather robust, but there are limits to the way the
   pump is controlled and how stable BT is, so there will be minor issues like the above
   from time to time, though they're small compared to what works well.
+- AAPS might be unresponsive for 10-30s or so when starting and calculating sensitivity.
+  AAPS might also be unresponsive when doing background work, e.g. after receiving a new
+  glucose reading.
+- Since the pump's date & time can't be updated automatically at this time, daylight saving changes
+  will cause an alert asking to update the pump clock. A usable workaround should be to disable
+  the automatic update of the phone's clock for the night and then enabling it again in the morning
+  when also updating the pump.
 
 Reporting bugs:
 - Note the precise time the problem occurred and describe the circumstances and steps that caused
